@@ -1,5 +1,7 @@
 import requests
-from tabulate import tabulate
+import psycopg2
+from psycopg2 import IntegrityError
+from decouple import config
 
 def get_crypto_data():
     url = "https://api.coinmarketcap.com/data-api/v3/cryptocurrency/listing"
@@ -17,24 +19,69 @@ def get_crypto_data():
 
 def extract_currency_info(currency):
     name = currency["name"]
-    price = round(currency["quotes"][0]["price"], 4)
-    percent_change_1h = round(currency["quotes"][0]["percentChange1h"], 2)
-    percent_change_24h = round(currency["quotes"][0]["percentChange24h"], 2)
-    percent_change_7d = round(currency["quotes"][0]["percentChange7d"], 2)
-    market_cap = round(currency["quotes"][0]["marketCap"], 2)
-    volume_24h = round(currency["quotes"][0]["volume24h"], 2)
-    circulating_supply = round(currency["circulatingSupply"], 2)
-    return (name, price, percent_change_1h, percent_change_24h, percent_change_7d, market_cap, volume_24h, circulating_supply)
+    price = currency["quotes"][0]["price"]
+    percent_change_1h = currency["quotes"][0]["percentChange1h"]
+    percent_change_24h = currency["quotes"][0]["percentChange24h"]
+    percent_change_7d = currency["quotes"][0]["percentChange7d"]
+    market_cap = currency["quotes"][0]["marketCap"]
+    volume_24h = currency["quotes"][0]["volume24h"]
+    circulating_supply = currency["circulatingSupply"]
+    last_update = currency["lastUpdated"]
+    return [name, price, percent_change_1h, percent_change_24h, percent_change_7d, market_cap, volume_24h, circulating_supply, last_update]
 
-def print_crypto_table(crypto_data):
-    results = []
+def save_data(crypto_data):
+    conn = psycopg2.connect(
+        dbname=config("DB_NAME"),
+        user=config("DB_USER"),
+        password=config("DB_PASSWORD"),
+        host=config("DB_HOST"),
+        port=config("DB_PORT"),
+    )
+
+    cur = conn.cursor()
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS cryptocurrencies (
+            id SERIAL PRIMARY KEY,
+            name VARCHAR(255),
+            price NUMERIC,
+            percent_change_1h NUMERIC,
+            percent_change_24h NUMERIC,
+            percent_change_7d NUMERIC,
+            market_cap NUMERIC,
+            volume_24h NUMERIC,
+            circulating_supply NUMERIC,
+            last_update TIMESTAMP,
+            CONSTRAINT unique_name_last_update UNIQUE (name, last_update)
+        );
+    """)
+
     for currency in crypto_data["data"]["cryptoCurrencyList"]:
-        results.append(extract_currency_info(currency))
+        currency_info = extract_currency_info(currency)
+        name = currency_info[0]
+        last_update = currency_info[-1]
 
-    headers = ["Name", "Price (USD)", "1h Change (%)", "24h Change (%)", "7d Change (%)", "Market Cap (USD)", "Volume (24h)", "Circulating Supply"]
-    print(tabulate(results, headers=headers, tablefmt="pretty"))
+        # check if a record with the same name exists in the table
+        cur.execute("SELECT last_update FROM cryptocurrencies WHERE name = %s", (name,))
+        existing_last_update = cur.fetchone()
 
+        if existing_last_update is None or existing_last_update[0] != last_update:
+            try:
+                cur.execute(
+                    """
+                    INSERT INTO cryptocurrencies (name, price, percent_change_1h, percent_change_24h, percent_change_7d, market_cap, volume_24h, circulating_supply, last_update)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    """, currency_info
+                )
+                conn.commit()
+                print(f"{name} added.")
+            except IntegrityError as e:
+                print(f"Error: {e}")
+                conn.rollback()
+
+    cur.close()
+    conn.close()
 
 crypto_data = get_crypto_data()
-print_crypto_table(crypto_data)
+save_data(crypto_data)
 
+print("Data saved to the database successfully.")
