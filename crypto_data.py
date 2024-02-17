@@ -54,6 +54,11 @@ def save_data(crypto_data):
             CONSTRAINT unique_name_last_update UNIQUE (name, last_update)
         );
     """)
+    
+    cur.execute("""
+        CREATE INDEX IF NOT EXISTS idx_cryptocurrencies_name ON cryptocurrencies (name);
+        CREATE INDEX IF NOT EXISTS idx_cryptocurrencies_last_update ON cryptocurrencies (last_update);
+    """)
 
     for currency in crypto_data["data"]["cryptoCurrencyList"]:
         currency_info = extract_currency_info(currency)
