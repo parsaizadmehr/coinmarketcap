@@ -39,26 +39,6 @@ def save_data(crypto_data):
     )
 
     cur = conn.cursor()
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS cryptocurrencies (
-            id SERIAL PRIMARY KEY,
-            name VARCHAR(255),
-            price NUMERIC,
-            percent_change_1h NUMERIC,
-            percent_change_24h NUMERIC,
-            percent_change_7d NUMERIC,
-            market_cap NUMERIC,
-            volume_24h NUMERIC,
-            circulating_supply NUMERIC,
-            last_update TIMESTAMP,
-            CONSTRAINT unique_name_last_update UNIQUE (name, last_update)
-        );
-    """)
-    
-    cur.execute("""
-        CREATE INDEX IF NOT EXISTS idx_cryptocurrencies_name ON cryptocurrencies (name);
-        CREATE INDEX IF NOT EXISTS idx_cryptocurrencies_last_update ON cryptocurrencies (last_update);
-    """)
 
     for currency in crypto_data["data"]["cryptoCurrencyList"]:
         currency_info = extract_currency_info(currency)
@@ -88,5 +68,3 @@ def save_data(crypto_data):
 
 crypto_data = get_crypto_data()
 save_data(crypto_data)
-
-print("Data saved to the database successfully.")

@@ -3,3 +3,4 @@ venv/
 *pyc
 .ideas/
 .vscode/
+alembic.ini
