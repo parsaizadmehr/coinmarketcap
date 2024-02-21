@@ -22,6 +22,7 @@ def upgrade() -> None:
     op.create_table(
         'cryptocurrencies',
         sa.Column('id', sa.Integer, primary_key=True),
+        sa.Column('rank', sa.Integer),
         sa.Column('name', sa.String(255), nullable=False),
         sa.Column('price', sa.Numeric),
         sa.Column('percent_change_1h', sa.Numeric),

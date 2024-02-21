@@ -18,6 +18,7 @@ def get_crypto_data():
     return response
 
 def extract_currency_info(currency):
+    rank = currency["cmcRank"]
     name = currency["name"]
     price = currency["quotes"][0]["price"]
     percent_change_1h = currency["quotes"][0]["percentChange1h"]
@@ -27,7 +28,7 @@ def extract_currency_info(currency):
     volume_24h = currency["quotes"][0]["volume24h"]
     circulating_supply = currency["circulatingSupply"]
     last_update = currency["lastUpdated"]
-    return [name, price, percent_change_1h, percent_change_24h, percent_change_7d, market_cap, volume_24h, circulating_supply, last_update]
+    return [rank, name, price, percent_change_1h, percent_change_24h, percent_change_7d, market_cap, volume_24h, circulating_supply, last_update]
 
 def save_data(crypto_data):
     conn = psycopg2.connect(
@@ -42,7 +43,7 @@ def save_data(crypto_data):
 
     for currency in crypto_data["data"]["cryptoCurrencyList"]:
         currency_info = extract_currency_info(currency)
-        name = currency_info[0]
+        name = currency_info[1]
         last_update = currency_info[-1]
 
         # check if a record with the same name exists in the table
@@ -53,8 +54,8 @@ def save_data(crypto_data):
             try:
                 cur.execute(
                     """
-                    INSERT INTO cryptocurrencies (name, price, percent_change_1h, percent_change_24h, percent_change_7d, market_cap, volume_24h, circulating_supply, last_update)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    INSERT INTO cryptocurrencies (rank, name, price, percent_change_1h, percent_change_24h, percent_change_7d, market_cap, volume_24h, circulating_supply, last_update)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     """, currency_info
                 )
                 conn.commit()
@@ -66,5 +67,51 @@ def save_data(crypto_data):
     cur.close()
     conn.close()
 
-crypto_data = get_crypto_data()
-save_data(crypto_data)
+def compare_ranks():
+    conn = psycopg2.connect(
+        dbname=config("DB_NAME"),
+        user=config("DB_USER"),
+        password=config("DB_PASSWORD"),
+        host=config("DB_HOST"),
+        port=config("DB_PORT"),
+    )
+
+    cur = conn.cursor()
+
+    cur.execute("""
+                SELECT name, rank
+                FROM (
+                    SELECT name, rank, ROW_NUMBER() OVER (PARTITION BY name ORDER BY last_update DESC) as rn
+                    FROM cryptocurrencies
+                ) AS sub
+                WHERE rn <= 2
+                ORDER BY rank
+                """)
+    rows = cur.fetchall()
+
+    ranks = {}
+    for name, rank in rows:
+        if name not in ranks:
+            ranks[name] = []
+        ranks[name].append(rank)
+
+    for name, rank_list in ranks.items():
+        if len(rank_list) == 2:
+            new_rank, old_rank = rank_list
+            if new_rank != old_rank:
+                print(f"'{name}' has gone from rank {old_rank} to {new_rank}")
+            # else:
+            #     print(f"{name} maintains the {old_rank}")
+        else:
+            print(f"Not enough data for '{name}'")
+
+    cur.close()
+    conn.close()
+
+def main():
+    crypto_data = get_crypto_data()
+    save_data(crypto_data)
+    compare_ranks()
+
+if __name__ == "__main__":
+    main()
