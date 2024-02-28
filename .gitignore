@@ -4,3 +4,4 @@ venv/
 .ideas/
 .vscode/
 alembic.ini
+chromedriver/

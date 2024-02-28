@@ -97,7 +97,7 @@ def compare_ranks():
 
     for name, rank_list in ranks.items():
         if len(rank_list) == 2:
-            new_rank, old_rank = rank_list
+            old_rank, new_rank = rank_list
             if new_rank != old_rank:
                 print(f"'{name}' has gone from rank {old_rank} to {new_rank}")
             # else:
