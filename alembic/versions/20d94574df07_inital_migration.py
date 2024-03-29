@@ -1,4 +1,4 @@
-"""Inital migration
+"""Initial migration
 
 Revision ID: 20d94574df07
 Revises: 
@@ -24,6 +24,7 @@ def upgrade() -> None:
         sa.Column('id', sa.Integer, primary_key=True),
         sa.Column('rank', sa.Integer),
         sa.Column('name', sa.String(255), nullable=False),
+        sa.Column('symbol', sa.String(10), nullable=False),  # New column
         sa.Column('price', sa.Numeric),
         sa.Column('percent_change_1h', sa.Numeric),
         sa.Column('percent_change_24h', sa.Numeric),
@@ -38,7 +39,8 @@ def upgrade() -> None:
     op.create_index('idx_cryptocurrencies_name', 'cryptocurrencies', ['name'])
     op.create_index('idx_cryptocurrencies_last_update', 'cryptocurrencies', ['last_update'])
 
+
 def downgrade() -> None:
     op.drop_index('idx_cryptocurrencies_last_update', table_name='cryptocurrencies')
     op.drop_index('idx_cryptocurrencies_name', table_name='cryptocurrencies')
-    op.drop_table('cryptocurrencies')
+    op.drop_column('cryptocurrencies', 'symbol')  # Drop the symbol column when downgrading

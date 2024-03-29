@@ -50,6 +50,7 @@ def insert_data(data, date):
                 item_data = item.split("\n")
                 rank = int(item_data[0])
                 name = item_data[1]
+                symbol = item_data[2]
                 market_cap = float(item_data[3].replace("$", "").replace(",", ""))
                 price = float(item_data[4].replace("$", "").replace(",", ""))
                 circulating_supply_text = item_data[5].split(" ")[0]
@@ -80,10 +81,10 @@ def insert_data(data, date):
                     percent_7d = float(percent_7d_str.replace("%", "")) if percent_7d_str != "--" else None
 
                 sql = """
-                INSERT INTO historical_data (rank, name, price, market_cap, circulating_supply, percent_change_1h, percent_change_24h, percent_change_7d, volume_24h, date)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                INSERT INTO historical_data (rank, name, symbol, price, market_cap, circulating_supply, percent_change_1h, percent_change_24h, percent_change_7d, volume_24h, date)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """
-                cursor.execute(sql, (rank, name, price, market_cap, circulating_supply, percent_1h, percent_24h, percent_7d, volume_24h, date))
+                cursor.execute(sql, (rank, name, symbol, price, market_cap, circulating_supply, percent_1h, percent_24h, percent_7d, volume_24h, date))
             except (IndexError, ValueError) as e:
                 print(f"An error occurred while processing data: {e}")
                 continue
@@ -100,8 +101,8 @@ def insert_data(data, date):
 
 def get_urls():
     '''Get all previous urls as list for crawl'''
-    start_date = datetime.date(2014, 1, 26)
-    end_date = datetime.date(2024, 2, 28)
+    start_date = datetime.date(2021, 10, 24)
+    end_date = datetime.date(2024, 3, 24)
     week_delta = datetime.timedelta(days=7)
 
     current_date = start_date

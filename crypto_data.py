@@ -20,6 +20,7 @@ def get_crypto_data():
 def extract_currency_info(currency):
     rank = currency["cmcRank"]
     name = currency["name"]
+    symbol = currency["symbol"]
     price = currency["quotes"][0]["price"]
     percent_change_1h = currency["quotes"][0]["percentChange1h"]
     percent_change_24h = currency["quotes"][0]["percentChange24h"]
@@ -28,7 +29,7 @@ def extract_currency_info(currency):
     volume_24h = currency["quotes"][0]["volume24h"]
     circulating_supply = currency["circulatingSupply"]
     last_update = currency["lastUpdated"]
-    return [rank, name, price, percent_change_1h, percent_change_24h, percent_change_7d, market_cap, volume_24h, circulating_supply, last_update]
+    return [rank, name, symbol, price, percent_change_1h, percent_change_24h, percent_change_7d, market_cap, volume_24h, circulating_supply, last_update]
 
 def save_data(crypto_data):
     conn = psycopg2.connect(
@@ -54,8 +55,8 @@ def save_data(crypto_data):
             try:
                 cur.execute(
                     """
-                    INSERT INTO cryptocurrencies (rank, name, price, percent_change_1h, percent_change_24h, percent_change_7d, market_cap, volume_24h, circulating_supply, last_update)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    INSERT INTO cryptocurrencies (rank, name, symbol, price, percent_change_1h, percent_change_24h, percent_change_7d, market_cap, volume_24h, circulating_supply, last_update)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     """, currency_info
                 )
                 conn.commit()

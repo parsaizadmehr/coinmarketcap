@@ -24,6 +24,7 @@ def upgrade() -> None:
         sa.Column('id', sa.Integer, primary_key=True),
         sa.Column('rank', sa.Integer),
         sa.Column('name', sa.String(255), nullable=False),
+        sa.Column('symbol', sa.String(10), nullable=False),
         sa.Column('price', sa.Numeric),
         sa.Column('percent_change_1h', sa.Numeric),
         sa.Column('percent_change_24h', sa.Numeric),
