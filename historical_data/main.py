@@ -1,5 +1,7 @@
+import os
 import datetime
 import time
+import logging
 
 from decouple import config
 from psycopg2 import OperationalError
@@ -8,6 +10,17 @@ from selenium.common.exceptions import WebDriverException
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 import psycopg2
+
+# Create a 'logs' folder if it doesn't exist
+if not os.path.exists('logs'):
+    os.makedirs('logs')
+
+# Configure the logging
+logging.basicConfig(
+    filename='logs/crawler.log',
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
 
 website = "https://coinmarketcap.com/historical/20130428/"
 
@@ -20,6 +33,7 @@ def smooth_scroll(driver, scroll_amount, interval):
         current_position += scroll_amount
         time.sleep(interval)
 
+
 def get_data_from_website(url):
     try:
         chrome_options = Options()
@@ -27,12 +41,14 @@ def get_data_from_website(url):
         driver = webdriver.Chrome(options=chrome_options)
         driver.get(url)
         smooth_scroll(driver, 500, 0.1)
-        all_elements = driver.find_elements(By.XPATH, "/html/body/div[1]/div[2]/div[2]/div/div[1]/div[3]/div[1]/div[3]/div/table/tbody/tr")
+        all_elements = driver.find_elements(By.XPATH,
+                                            "/html/body/div[1]/div[2]/div[2]/div/div[1]/div[3]/div[1]/div[3]/div/table/tbody/tr")
         data = [element.text.strip() for element in all_elements]
         return data
     except WebDriverException as e:
-        print(f"An error occurred while accessing the website: {e}")
+        logging.error(f"An error occurred while accessing the website: {e}")
         return []
+
 
 def insert_data(data, date):
     try:
@@ -44,7 +60,7 @@ def insert_data(data, date):
             port=config("DB_PORT"),
         )
         cursor = conn.cursor()
-        
+
         for item in data:
             try:
                 item_data = item.split("\n")
@@ -59,24 +75,24 @@ def insert_data(data, date):
                 if len(item_data) == 10:
                     volume_24h_str = item_data[6].replace("$", "").replace(",", "")
                     volume_24h = float(volume_24h_str) if volume_24h_str != "--" else None
-                    
-                    percent_1h_str = item_data[7].replace(",", "") 
+
+                    percent_1h_str = item_data[7].replace(",", "")
                     percent_1h = float(percent_1h_str.replace("%", "")) if percent_1h_str != "--" else None
 
                     percent_24h_str = item_data[8].replace(",", "")
                     percent_24h = float(percent_24h_str.replace("%", "")) if percent_24h_str != "--" else None
-                    
+
                     percent_7d_str = item_data[9].replace(",", "")
                     percent_7d = float(percent_7d_str.replace("%", "")) if percent_7d_str != "--" else None
-                    
+
                 else:
                     volume_24h = None
-                    percent_1h_str = item_data[6].replace(",", "") 
+                    percent_1h_str = item_data[6].replace(",", "")
                     percent_1h = float(percent_1h_str.replace("%", "")) if percent_1h_str != "--" else None
 
                     percent_24h_str = item_data[7].replace(",", "")
                     percent_24h = float(percent_24h_str.replace("%", "")) if percent_24h_str != "--" else None
-                    
+
                     percent_7d_str = item_data[8].replace(",", "")
                     percent_7d = float(percent_7d_str.replace("%", "")) if percent_7d_str != "--" else None
 
@@ -84,24 +100,27 @@ def insert_data(data, date):
                 INSERT INTO historical_data (rank, name, symbol, price, market_cap, circulating_supply, percent_change_1h, percent_change_24h, percent_change_7d, volume_24h, date)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """
-                cursor.execute(sql, (rank, name, symbol, price, market_cap, circulating_supply, percent_1h, percent_24h, percent_7d, volume_24h, date))
+                cursor.execute(sql, (
+                rank, name, symbol, price, market_cap, circulating_supply, percent_1h, percent_24h, percent_7d,
+                volume_24h, date))
             except (IndexError, ValueError) as e:
-                print(f"An error occurred while processing data: {e}")
+                logging.error(f"An error occurred while processing data: {e}")
                 continue
 
-        print("Data saved.")
+        logging.info("Data saved.")
         conn.commit()
     except (OperationalError, psycopg2.Error) as e:
-        print(f"An error occurred while connecting to the database: {e}")
+        logging.error(f"An error occurred while connecting to the database: {e}")
     finally:
         if cursor:
             cursor.close()
         if conn:
             conn.close()
 
+
 def get_urls():
     '''Get all previous urls as list for crawl'''
-    start_date = datetime.date(2021, 10, 24)
+    start_date = datetime.date(2022, 8, 7)
     end_date = datetime.date(2024, 3, 24)
     week_delta = datetime.timedelta(days=7)
 
@@ -114,11 +133,12 @@ def get_urls():
         current_date += week_delta
     return urls
 
+
 urls = get_urls()
 
 for url in urls:
-    print("-------------------------")
-    print(f"requesting to {url}")
+    logging.info("-------------------------")
+    logging.info(f"requesting to {url}")
 
     # getting date from url to use in insert data
     date = datetime.datetime.strptime(url.split("/")[-2], "%Y%m%d").strftime("%Y-%m-%d")
