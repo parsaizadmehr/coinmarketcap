@@ -80,34 +80,29 @@ def compare_ranks():
     cur = conn.cursor()
 
     cur.execute("""
-                SELECT name, rank
-                FROM (
-                    SELECT name, rank, ROW_NUMBER() OVER (PARTITION BY name ORDER BY last_update DESC) as rn
-                    FROM cryptocurrencies
-                ) AS sub
-                WHERE rn <= 2
-                ORDER BY rank
-                """)
+        SELECT name, rank, last_update
+        FROM cryptocurrencies
+        ORDER BY rank, last_update DESC
+        """)
     rows = cur.fetchall()
 
-    ranks = {}
-    for name, rank in rows:
-        if name not in ranks:
-            ranks[name] = []
-        ranks[name].append(rank)
+    coin_updates = {}
+    for name, rank, last_update in rows:
+        if name not in coin_updates:
+            coin_updates[name] = []
 
-    for name, rank_list in ranks.items():
-        if len(rank_list) == 2:
-            old_rank, new_rank = rank_list
-            if new_rank != old_rank:
-                print(f"'{name}' has gone from rank {old_rank} to {new_rank}")
-            # else:
-            #     print(f"{name} maintains the {old_rank}")
-        else:
-            print(f"Not enough data for '{name}'")
+        coin_updates[name].append((rank, last_update))
+
+    for name, updates in coin_updates.items():
+        if len(updates) >= 2:
+            rank_change = updates[0][0] - updates[1][0]
+            if rank_change != 0:
+                change_symbol = "+" if rank_change > 0 else "-"
+                print(f"{name} to {updates[0][0]} ({change_symbol}{abs(rank_change)})")
 
     cur.close()
     conn.close()
+
 
 def main():
     crypto_data = get_crypto_data()

@@ -26,6 +26,10 @@ class MessageResponder
       coin_rank_history(coin_symbol)
     end
 
+    on /^\/compare_ranks/ do
+      compare_ranks
+    end
+
     on /^\/stop/ do
       answer_with_farewell_message
     end
@@ -91,6 +95,38 @@ class MessageResponder
   
     MessageSender.new(bot: bot, chat: message.chat, text: msg).send
   
+  end
+
+  def compare_ranks
+    coins = Cryptocurrency.select(:name, :rank, :last_update).order(:rank, last_update: :desc)
+    
+    last_ranks = {}
+  
+    rank_changes = {}
+  
+    coins.each do |coin|
+      next unless coin.rank && coin.last_update
+  
+      next if last_ranks[coin.name] == coin.rank
+  
+      last_rank = Cryptocurrency.where(name: coin.name).where.not(rank: nil).order(last_update: :desc).limit(2).pluck(:rank).reverse
+  
+      if last_rank.length == 2
+        rank_change = last_rank.first - last_rank.last
+        if rank_change != 0 # Include only if there's a rank change
+          change_symbol = rank_change.positive? ? "-" : "+"
+          rank_changes[coin.name] = { change: rank_change, text: "#{coin.name} to #{last_rank.first} (#{change_symbol}#{rank_change.abs})" }
+        end
+      end
+  
+      last_ranks[coin.name] = coin.rank
+    end
+  
+    sorted_rank_changes = rank_changes.values.sort_by { |change| change[:change].abs }.reverse
+  
+    msg = sorted_rank_changes.any? ? sorted_rank_changes.map { |change| change[:text] }.join("\n") : "No rank changes detected."
+  
+    MessageSender.new(bot: bot, chat: message.chat, text: msg).send
   end
   
 end
