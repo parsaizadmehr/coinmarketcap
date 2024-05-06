@@ -1,7 +1,11 @@
 import requests
 import psycopg2
+import logging
 from psycopg2 import IntegrityError
+from psycopg2.extras import RealDictCursor
 from decouple import config
+
+logging.basicConfig(filename="logs/crypto_data.log", level=logging.DEBUG, format="%(asctime)s: %(levelname)s: %(message)s")
 
 def get_crypto_data():
     url = "https://api.coinmarketcap.com/data-api/v3/cryptocurrency/listing"
@@ -47,7 +51,6 @@ def save_data(crypto_data):
         name = currency_info[1]
         last_update = currency_info[-1]
 
-        # check if a record with the same name exists in the table
         cur.execute("SELECT last_update FROM cryptocurrencies WHERE name = %s", (name,))
         existing_last_update = cur.fetchone()
 
@@ -60,9 +63,9 @@ def save_data(crypto_data):
                     """, currency_info
                 )
                 conn.commit()
-                print(f"{name} added.")
+                logging.info(f"{name} added.")
             except IntegrityError as e:
-                print(f"Error: {e}")
+                logging.error(f"Error: {e}")
                 conn.rollback()
 
     cur.close()
@@ -77,37 +80,52 @@ def compare_ranks():
         port=config("DB_PORT"),
     )
 
-    cur = conn.cursor()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
 
-    cur.execute("""
-        SELECT name, rank, last_update
-        FROM cryptocurrencies
-        ORDER BY rank, last_update DESC
-        """)
+    cur.execute(
+        """
+        SELECT name, rank, last_update 
+        FROM cryptocurrencies 
+        ORDER BY name, last_update DESC
+        """
+    )
     rows = cur.fetchall()
 
-    coin_updates = {}
-    for name, rank, last_update in rows:
-        if name not in coin_updates:
-            coin_updates[name] = []
+    rank_changes_positive = []
+    rank_changes_negative = []
+    for i in range(0, len(rows), 2):
+        if i + 1 < len(rows):
+            current_rank = rows[i]["rank"]
+            previous_rank = rows[i + 1]["rank"]
+            name = rows[i]["name"]
+            rank_change = previous_rank - current_rank
+            if rank_change > 0:
+                rank_changes_positive.append((name, previous_rank, current_rank, rank_change))
+            if rank_change < 0:
+                rank_changes_negative.append((name, previous_rank, current_rank, rank_change))
 
-        coin_updates[name].append((rank, last_update))
-
-    for name, updates in coin_updates.items():
-        if len(updates) >= 2:
-            rank_change = updates[0][0] - updates[1][0]
-            if rank_change != 0:
-                change_symbol = "+" if rank_change > 0 else "-"
-                print(f"{name} to {updates[0][0]} ({change_symbol}{abs(rank_change)})")
+    rank_changes_positive.sort(key=lambda x: abs(x[3]), reverse=True)
+    rank_changes_negative.sort(key=lambda x: abs(x[3]), reverse=True)
 
     cur.close()
     conn.close()
 
+    return rank_changes_positive, rank_changes_negative
 
 def main():
     crypto_data = get_crypto_data()
     save_data(crypto_data)
-    compare_ranks()
+
+    positive_changes, negative_changes = compare_ranks()
+    logging.info("Positive Rank Changes:")
+    for change in positive_changes:
+        name, previous_rank, current_rank, rank_change = change
+        logging.info(f"{name} {current_rank} to {previous_rank} ({rank_change})")
+
+    logging.info("Negative Rank Changes:")
+    for change in negative_changes:
+        name, previous_rank, current_rank, rank_change = change
+        logging.info(f"{name} {current_rank} to {previous_rank} ({rank_change})")
 
 if __name__ == "__main__":
     main()
