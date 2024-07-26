@@ -84,48 +84,75 @@ def compare_ranks():
 
     cur.execute(
         """
-        SELECT name, rank, last_update 
-        FROM cryptocurrencies 
-        ORDER BY name, last_update DESC
+        WITH ranked_cryptocurrencies AS (
+            SELECT
+                id,
+                rank,
+                symbol,
+                name,
+                price,
+                percent_change_1h,
+                percent_change_24h,
+                percent_change_7d,
+                market_cap,
+                volume_24h,
+                circulating_supply,
+                last_update,
+                ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY last_update DESC) AS rn
+            FROM
+                cryptocurrencies
+        )
+        SELECT
+            current.symbol,
+            current.name,
+            current.rank AS current_rank,
+            previous.rank AS previous_rank,
+            ( previous.rank - current.rank ) AS rank_change,
+            current.price AS current_price,
+            previous.price AS previous_price,
+            current.percent_change_1h AS current_percent_change_1h,
+            previous.percent_change_1h AS previous_percent_change_1h,
+            current.percent_change_24h AS current_percent_change_24h,
+            previous.percent_change_24h AS previous_percent_change_24h,
+            current.percent_change_7d AS current_percent_change_7d,
+            previous.percent_change_7d AS previous_percent_change_7d,
+            current.market_cap AS current_market_cap,
+            previous.market_cap AS previous_market_cap,
+            current.volume_24h AS current_volume_24h,
+            previous.volume_24h AS previous_volume_24h,
+            current.circulating_supply AS current_circulating_supply,
+            previous.circulating_supply AS previous_circulating_supply,
+            current.last_update AS current_last_update,
+            previous.last_update AS previous_last_update
+        FROM
+            ranked_cryptocurrencies current
+        LEFT JOIN
+            ranked_cryptocurrencies previous
+        ON
+            current.symbol = previous.symbol
+            AND previous.rn = 2
+        WHERE
+            current.rn = 1;
         """
     )
-    rows = cur.fetchall()
 
-    rank_changes_positive = []
-    rank_changes_negative = []
-    for i in range(0, len(rows), 2):
-        if i + 1 < len(rows):
-            current_rank = rows[i]["rank"]
-            previous_rank = rows[i + 1]["rank"]
-            name = rows[i]["name"]
-            rank_change = previous_rank - current_rank
-            if rank_change > 0:
-                rank_changes_positive.append((name, previous_rank, current_rank, rank_change))
-            if rank_change < 0:
-                rank_changes_negative.append((name, previous_rank, current_rank, rank_change))
+    results = cur.fetchall()
+    
+    if results:
+        logging.debug(f"Last update: {results[0]['current_last_update']}")
 
-    rank_changes_positive.sort(key=lambda x: abs(x[3]), reverse=True)
-    rank_changes_negative.sort(key=lambda x: abs(x[3]), reverse=True)
+    for result in results:
+        rank_change = result['rank_change']
+        if rank_change != 0:
+            logging.debug(f"{result['symbol']} {result['current_rank']}, Rank Change: {rank_change}")
 
     cur.close()
     conn.close()
 
-    return rank_changes_positive, rank_changes_negative
-
 def main():
     crypto_data = get_crypto_data()
     save_data(crypto_data)
-
-    positive_changes, negative_changes = compare_ranks()
-    logging.info("Positive Rank Changes:")
-    for change in positive_changes:
-        name, previous_rank, current_rank, rank_change = change
-        logging.info(f"{name} {current_rank} to {previous_rank} ({rank_change})")
-
-    logging.info("Negative Rank Changes:")
-    for change in negative_changes:
-        name, previous_rank, current_rank, rank_change = change
-        logging.info(f"{name} {current_rank} to {previous_rank} ({rank_change})")
+    compare_ranks()
 
 if __name__ == "__main__":
     main()

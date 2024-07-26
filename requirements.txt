@@ -1,0 +1,25 @@
+alembic==1.13.1
+attrs==23.2.0
+certifi==2024.6.2
+cffi==1.16.0
+charset-normalizer==3.3.2
+greenlet==3.0.3
+h11==0.14.0
+idna==3.7
+Mako==1.3.5
+MarkupSafe==2.1.5
+outcome==1.3.0.post0
+psycopg2==2.9.9
+pycparser==2.22
+PySocks==1.7.1
+python-decouple==3.8
+requests==2.32.3
+selenium @ file:///C:/Users/Dear%20User/Desktop/coinmarketcap/selenium-4.22.0.tar.gz#sha256=903c8c9d61b3eea6fcc9809dc7d9377e04e2ac87709876542cc8f863e482c4ce
+sniffio==1.3.1
+sortedcontainers==2.4.0
+SQLAlchemy==2.0.31
+trio==0.25.1
+trio-websocket==0.11.1
+typing_extensions==4.12.2
+urllib3==2.2.2
+wsproto==1.2.0

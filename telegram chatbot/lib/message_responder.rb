@@ -107,35 +107,79 @@ class MessageResponder
   end
 
   def compare_ranks
-    # comment: where is logger use? I added it in this file and can be called by "logger.info", etc.
-
-    coins = Cryptocurrency.select(:name, :rank, :last_update).order(:rank, last_update: :desc) # comment: this is not 'coins'. it is recent rank history of coins
-
-    last_ranks = {}
-    rank_changes = {}
-
-    coins.each do |coin|
-      next unless coin.rank && coin.last_update # comment: why they can be nil?
-      next if last_ranks[coin.name] == coin.rank # comment: what is the logic behind it? doesn't it matter if a coin changed rank last day or last week?
-
-      # comment: You are hitting database for each coin rank data
-      # comment: Why rank column of a rank history can be nil?!
-      last_rank = Cryptocurrency.where(name: coin.name).where.not(rank: nil).order(last_update: :desc).limit(2).pluck(:rank).reverse
-
-      if last_rank.length == 2
-        rank_change = last_rank.first - last_rank.last
-        if rank_change != 0 # Include only if there's a rank change
-          change_symbol = rank_change.positive? ? '-' : '+'
-          rank_changes[coin.name] = { change: rank_change, text: "#{coin.name} to #{last_rank.first} (#{change_symbol}#{rank_change.abs})" }
+    sql = <<-SQL
+      WITH ranked_cryptocurrencies AS (
+          SELECT
+              id,
+              rank,
+              symbol,
+              name,
+              price,
+              percent_change_1h,
+              percent_change_24h,
+              percent_change_7d,
+              market_cap,
+              volume_24h,
+              circulating_supply,
+              last_update,
+              ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY last_update DESC) AS rn
+          FROM
+              cryptocurrencies
+      )
+      SELECT
+          current.symbol,
+          current.name,
+          current.rank AS current_rank,
+          previous.rank AS previous_rank,
+          (previous.rank - current.rank) AS rank_change,
+          current.price AS current_price,
+          previous.price AS previous_price,
+          current.percent_change_1h AS current_percent_change_1h,
+          previous.percent_change_1h AS previous_percent_change_1h,
+          current.percent_change_24h AS current_percent_change_24h,
+          previous.percent_change_24h AS previous_percent_change_24h,
+          current.percent_change_7d AS current_percent_change_7d,
+          previous.percent_change_7d AS previous_percent_change_7d,
+          current.market_cap AS current_market_cap,
+          previous.market_cap AS previous_market_cap,
+          current.volume_24h AS current_volume_24h,
+          previous.volume_24h AS previous_volume_24h,
+          current.circulating_supply AS current_circulating_supply,
+          previous.circulating_supply AS previous_circulating_supply,
+          current.last_update AS current_last_update,
+          previous.last_update AS previous_last_update
+      FROM
+          ranked_cryptocurrencies current
+      LEFT JOIN
+          ranked_cryptocurrencies previous
+      ON
+          current.symbol = previous.symbol
+          AND previous.rn = 2
+      WHERE
+          current.rn = 1;
+    SQL
+  
+    results = ActiveRecord::Base.connection.execute(sql)
+  
+    msg = "📊The most changed ranks:\n"
+  
+    if results.any?
+      results.each do |result|
+        rank_change = result['rank_change']
+        if rank_change != 0
+          msg += "#{result['symbol']} #{result['current_rank']}, (#{rank_change.positive? ? '+' : '-'}#{rank_change.abs})\n"
+          logger.debug("#{result['symbol']} #{result['current_rank']}, Rank Change: #{rank_change}")
         end
       end
-
-      last_ranks[coin.name] = coin.rank
+  
+      last_update = results[0]['current_last_update'].strftime('%d-%m-%Y %H:%M')
+      msg += "\n#{last_update}"
+      logger.debug("Last update: #{last_update}")
+    else
+      msg = 'No rank changes detected.'
+      logger.debug(msg)
     end
-
-    sorted_rank_changes = rank_changes.values.sort_by { |change| change[:change].abs }.reverse
-    msg = sorted_rank_changes.any? ? sorted_rank_changes.map { |change| change[:text] }.join("\n") : 'No rank changes detected.'
-
+  
     answer_with_message(msg)
   end
 

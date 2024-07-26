@@ -11,16 +11,23 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 import psycopg2
 
+# Define the base directory
+basedir = os.path.dirname(os.path.abspath(__file__))
+
+# Define the logs directory in the coinmarketcap directory
+logs_dir = os.path.join(basedir, '..', 'logs')
+
 # Create a 'logs' folder if it doesn't exist
-if not os.path.exists('logs'):
-    os.makedirs('logs')
+if not os.path.exists(logs_dir):
+    os.makedirs(logs_dir)
 
 # Configure the logging
 logging.basicConfig(
-    filename='logs/crawler.log',
+    filename=os.path.join(logs_dir, 'crawler.log'),
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
+
 
 website = "https://coinmarketcap.com/historical/20130428/"
 
