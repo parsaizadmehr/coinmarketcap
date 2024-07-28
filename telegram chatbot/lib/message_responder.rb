@@ -1,8 +1,8 @@
 require 'English'
-require './models/user'
-require './models/crypto'
-require './lib/message_sender'
-require './lib/app_configurator'
+require_relative '../models/user'
+require_relative '../models/crypto'
+require_relative 'message_sender'
+require_relative 'app_configurator'
 
 class MessageResponder
   attr_reader :message

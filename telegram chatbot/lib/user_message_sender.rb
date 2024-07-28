@@ -1,8 +1,8 @@
-# lib/user_message_sender.rb
-require './lib/message_sender'
-require './lib/app_configurator'
-require './models/crypto'
-require './models/user'
+require_relative 'message_sender'
+require_relative 'app_configurator'
+require_relative '../models/crypto'
+require_relative '../models/user'
+
 
 class UserMessageSender
   attr_reader :bot
