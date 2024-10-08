@@ -1,9 +1,0 @@
-adapter: postgresql
-database: 
-username: 
-password: 
-host: 
-port: 
-encoding: unicode
-pool: 5
-timeout: 5000
