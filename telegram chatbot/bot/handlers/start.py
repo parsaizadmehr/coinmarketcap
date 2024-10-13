@@ -20,7 +20,3 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     insert_new_user(user_id)
 
     await update.message.reply_text("Welcome to the Telegram Bot Starter Kit!")
-
-@log_command
-async def top(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("top")
