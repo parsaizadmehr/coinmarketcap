@@ -22,9 +22,9 @@ def upgrade() -> None:
     op.create_table(
         'users',
         sa.Column('id', sa.Integer, primary_key=True),
-        sa.Column('uid', sa.Integer, nullable=True)  # Assuming uid can be nullable
+        sa.Column('uid', sa.BigInteger, nullable=True, unique=True),
+        sa.Column('language', sa.String(10), nullable=False, server_default='en')
     )
-
 
 def downgrade() -> None:
     op.drop_table('users')

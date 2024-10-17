@@ -3,23 +3,24 @@ from telegram.ext import ContextTypes
 from bot.utils.decorators import log_command
 from database.db_connection import get_db_connection
 from datetime import date, timedelta
+from .localization import get_message, get_user_language 
 
 @log_command
 async def coin_rank_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    #input user and make it uppercase
+    user_id = update.message.from_user.id
+    user_language = get_user_language(user_id)
+    
     coin_symbol = context.args[0].upper()
 
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    # get dates for today, last week, month, last year and last tree years
     today = date.today()
     last_week_date = today - timedelta(days=7)
-    last_month_date = today.replace(month=today.month - 1 if today.month > 1 else 12, year=today.year - (1 if today.month == 1 else 0))
-    last_year_date = today.replace(year=today.year - 1)
-    last_three_years_date = today.replace(year=today.year - 3)
+    last_month_date = today - timedelta(days=30)
+    last_year_date = today - timedelta(days=365)
+    last_three_years_date = today - timedelta(days=1095)
 
-    # query to get rank for a specific date range
     def get_rank_before_date(symbol, target_date):
         cursor.execute("""
             SELECT rank 
@@ -29,33 +30,32 @@ async def coin_rank_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
         """, (symbol, target_date))
         return cursor.fetchone()
 
-    # fetch rank records for each time period
     last_week_record = get_rank_before_date(coin_symbol, last_week_date)
     last_month_record = get_rank_before_date(coin_symbol, last_month_date)
     last_year_record = get_rank_before_date(coin_symbol, last_year_date)
     last_three_years_record = get_rank_before_date(coin_symbol, last_three_years_date)
 
-    msg = f"Rank history for {coin_symbol}:\n"
-    
-    if last_week_record and len(last_week_record) == 2:  # Ensure the record exists and has rank and date
-        msg += f"Last week: {last_week_record[0]} (date: {last_week_record[1]})\n"
-    else:
-        msg += "No record found for last week.\n"
+    msg = get_message('rank_history', user_language, coin_symbol=coin_symbol) + "\n"
 
-    if last_month_record and len(last_month_record) == 2:
-        msg += f"Last month: {last_month_record[0]} (date: {last_month_record[1]})\n"
+    if last_week_record:
+        msg += f"{get_message('last_week_msg', user_language)} {last_week_record[0]}\n"
     else:
-        msg += "No record found for last month.\n"
+        msg += get_message('no_record_week', user_language) + "\n"
 
-    if last_year_record and len(last_year_record) == 2:
-        msg += f"Last year: {last_year_record[0]} (date: {last_year_record[1]})\n"
+    if last_month_record:
+        msg += f"{get_message('last_month_msg', user_language)} {last_month_record[0]}\n"
     else:
-        msg += "No record found for last year.\n"
+        msg += get_message('no_record_month', user_language) + "\n"
 
-    if last_three_years_record and len(last_three_years_record) == 2:
-        msg += f"Last three years: {last_three_years_record[0]} (date: {last_three_years_record[1]})\n"
+    if last_year_record:
+        msg += f"{get_message('last_year_msg', user_language)} {last_year_record[0]}\n"
     else:
-        msg += "No record found for last three years.\n"
+        msg += get_message('no_record_year', user_language) + "\n"
+
+    if last_three_years_record:
+        msg += f"{get_message('last_three_years_msg', user_language)} {last_three_years_record[0]}\n"
+    else:
+        msg += get_message('no_record_three_years', user_language) + "\n"
 
     await update.message.reply_text(msg)
 

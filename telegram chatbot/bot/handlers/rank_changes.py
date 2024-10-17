@@ -2,9 +2,13 @@ from telegram import Update
 from telegram.ext import ContextTypes
 from bot.utils.decorators import log_command
 from database.db_connection import get_db_connection
+from .localization import get_message, get_user_language
 
 @log_command
 async def rank_changes(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.message.from_user.id
+    user_language = get_user_language(user_id)
+
     conn = get_db_connection()
     cursor = conn.cursor()
 
@@ -33,9 +37,9 @@ async def rank_changes(update: Update, context: ContextTypes.DEFAULT_TYPE):
         AND previous.rn = 2
     WHERE
         current.rn = 1
-        AND (previous.rank - current.rank) <> 0  -- Exclude where rank change is 0
+        AND (previous.rank - current.rank) <> 0
     ORDER BY
-        ABS(previous.rank - current.rank) DESC  -- Order by the largest rank change
+        ABS(previous.rank - current.rank) DESC
     """
 
     cursor.execute(query)
@@ -45,9 +49,8 @@ async def rank_changes(update: Update, context: ContextTypes.DEFAULT_TYPE):
     cursor.close()
     conn.close()
 
-    rank_changes_msg = "📊 Cryptocurrency Rank Changes:\n\n"
+    rank_changes_msg = get_message('cryptocurrency_rank_changes', user_language)
     for symbol, current_rank, previous_rank, rank_change in rows:
         rank_changes_msg += f"🪙 {symbol} {previous_rank} to {current_rank} ({rank_change})\n"
-        
 
     await update.message.reply_text(rank_changes_msg)
