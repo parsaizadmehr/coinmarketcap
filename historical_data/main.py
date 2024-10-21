@@ -2,17 +2,22 @@ import os
 import datetime
 import time
 import logging
-
+from pathlib import Path
 from decouple import config
 from psycopg2 import OperationalError
 from selenium import webdriver
 from selenium.common.exceptions import WebDriverException
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
+from dotenv import load_dotenv
 import psycopg2
 
 # Define the base directory
 basedir = os.path.dirname(os.path.abspath(__file__))
+
+# load the .env file from the parent directory
+env_path = Path(basedir).parent / '.env'
+load_dotenv(dotenv_path=env_path)
 
 # Define the logs directory in the coinmarketcap directory
 logs_dir = os.path.join(basedir, '..', 'logs')
@@ -28,7 +33,6 @@ logging.basicConfig(
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
 
-
 website = "https://coinmarketcap.com/historical/20130428/"
 
 def smooth_scroll(driver, scroll_amount, interval):
@@ -39,7 +43,6 @@ def smooth_scroll(driver, scroll_amount, interval):
         driver.execute_script(f"window.scrollBy(0, {scroll_amount});")
         current_position += scroll_amount
         time.sleep(interval)
-
 
 def get_data_from_website(url):
     try:
@@ -55,7 +58,6 @@ def get_data_from_website(url):
     except WebDriverException as e:
         logging.error(f"An error occurred while accessing the website: {e}")
         return []
-
 
 def insert_data(data, date):
     try:
@@ -108,8 +110,8 @@ def insert_data(data, date):
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """
                 cursor.execute(sql, (
-                rank, name, symbol, price, market_cap, circulating_supply, percent_1h, percent_24h, percent_7d,
-                volume_24h, date))
+                    rank, name, symbol, price, market_cap, circulating_supply, percent_1h, percent_24h, percent_7d,
+                    volume_24h, date))
             except (IndexError, ValueError) as e:
                 logging.error(f"An error occurred while processing data: {e}")
                 continue
@@ -123,7 +125,6 @@ def insert_data(data, date):
             cursor.close()
         if conn:
             conn.close()
-
 
 def get_urls():
     '''Get all previous urls as list for crawl'''
@@ -139,7 +140,6 @@ def get_urls():
         urls.append(url)
         current_date += week_delta
     return urls
-
 
 urls = get_urls()
 

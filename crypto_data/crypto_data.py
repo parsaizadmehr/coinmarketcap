@@ -1,9 +1,14 @@
+import os
 import requests
 import psycopg2
 import logging
 from psycopg2 import IntegrityError
 from psycopg2.extras import RealDictCursor
 from decouple import config
+
+log_dir = os.path.join(os.path.dirname(__file__), "..", "logs")
+if not os.path.exists(log_dir):
+    os.mkdir(log_dir)
 
 logging.basicConfig(filename="logs/crypto_data.log", level=logging.DEBUG, format="%(asctime)s: %(levelname)s: %(message)s")
 

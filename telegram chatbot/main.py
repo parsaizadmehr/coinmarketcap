@@ -1,4 +1,5 @@
 import logging
+import asyncio
 from telegram import Bot
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters
 from config import TELEGRAM_BOT_TOKEN, USE_DATABASE
@@ -14,7 +15,7 @@ logging.basicConfig(
     level=logging.INFO
 )
 
-def set_commands(bot: Bot):
+async def set_commands(bot: Bot):
     commands = [
         ("start", "Welcome message"),
         ("top", "Get the top-ranked items"),
@@ -22,12 +23,14 @@ def set_commands(bot: Bot):
         ("c", "Get coin rank history"),
         ("set_language", "Set your preferred language"),
     ]
-    bot.set_my_commands(commands)
+    await bot.set_my_commands(commands)
 
 def main():
     application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
 
-    set_commands(application.bot)
+    # Run set_commands within the running event loop
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(set_commands(application.bot))
 
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("top", top))
